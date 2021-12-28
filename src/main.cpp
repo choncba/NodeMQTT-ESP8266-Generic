@@ -1,10 +1,6 @@
 /*
-  Nodo para la bomba de agua de la pileta
-  Conectado a Home Assistant
-  Hardware:
-          - ESP8266 ESP01 con 512Kb
-          - 1 entradas de Pulsador
-          - 1 Salidas a Triac
+  ESP8266 Generic MQTT Node for IoT
+  Suports ESP01 an generic ESP8266
 */
 
 #include <Arduino.h>
@@ -28,12 +24,12 @@ WiFiClient  telnetClient;
 WiFiClient    wifiClient;
 PubSubClient  mqttClient(wifiClient);
 
-void PublicarBomba(void);
-void PublicarTecla(void);
+void PublishOutput(void);
+void PublishInput(void);
 
 struct Status{
-boolean Bomba = 0;
-uint8_t Tecla = 1;
+boolean output_GPIO = 0;
+uint8_t input_GPIO = 1;
 }nodo;
 
 #pragma region Debug TELNET
@@ -157,14 +153,14 @@ void handleMQTTMessage(char* p_topic, byte* p_payload, unsigned int p_length) {
       DEBUG_PRINTLN(F("PAYLOAD: OFF"));
     } 
     
-    if(set_value != nodo.Bomba)
+    if(set_value != nodo.output_GPIO)
     {
-      nodo.Bomba = set_value;
-      digitalWrite(SALIDA1, nodo.Bomba);
+      nodo.output_GPIO = set_value;
+      digitalWrite(OUTPUT, nodo.output_GPIO);
       DEBUG_PRINT(F("Water PUMP TURNED: "));
-      DEBUG_PRINTLN((nodo.Bomba)?"ON":"OFF");
+      DEBUG_PRINTLN((nodo.output_GPIO)?"ON":"OFF");
     }
-    PublicarBomba();
+    PublishOutput();
   }
 }
 
@@ -212,8 +208,8 @@ void connectToMQTT()
         DEBUG_PRINTLN(F("INFO: The client is successfully connected to the MQTT broker"));
         publishToMQTT(LWT_TOPIC, MQTT_CONNECTED_STATUS);
 
-        PublicarBomba();
-        PublicarTecla();
+        PublishOutput();
+        PublishInput();
         subscribeToMQTT(SET_TOPIC);
       } 
       else
@@ -233,34 +229,34 @@ void connectToMQTT()
 #pragma endregion
 
 #pragma region Publicaciones MQTT
-void PublicarTecla()
+void PublishInput()
 {
-  StringData = String((nodo.Tecla)?ON:OFF);
+  StringData = String((nodo.input_GPIO)?ON:OFF);
   StringData.toCharArray(CharData, sizeof(CharData));
-  publishToMQTT(STATUS_TECLA_TOPIC, CharData);
+  publishToMQTT(STATUS_INPUT_TOPIC, CharData);
 }
 
-void PublicarBomba()
+void PublishOutput()
 {
-  StringData = String((nodo.Bomba)?ON:OFF);
+  StringData = String((nodo.output_GPIO)?ON:OFF);
   StringData.toCharArray(CharData, sizeof(CharData));
-  publishToMQTT(STATUS_BOMBA_TOPIC, CharData);
+  publishToMQTT(STATUS_OUTPUT_TOPIC, CharData);
 }
 
 #pragma endregion
 
 #pragma region Lectura de Teclas y sensor
 
-void CheckTeclas(){
+void CheckInputs(){
   static uint8_t RoundCheck = 0;
   const uint8_t RoundCheckThreshole = 8;
 
-  uint8_t curStatus = digitalRead(PULSADOR1);
-  if (nodo.Tecla != curStatus)
+  uint8_t curStatus = digitalRead(INPUT);
+  if (nodo.input_GPIO != curStatus)
   {
     delay(5);
-    curStatus = digitalRead(PULSADOR1);
-    if (nodo.Tecla != curStatus)
+    curStatus = digitalRead(INPUT);
+    if (nodo.input_GPIO != curStatus)
     {
       RoundCheck++;
     }
@@ -268,16 +264,16 @@ void CheckTeclas(){
 
     if (RoundCheck >= RoundCheckThreshole)
     {
-      if(!nodo.Tecla&curStatus) // Si la tecla pasa de 0 a 1
+      if(!nodo.input_GPIO&curStatus) // Si la tecla pasa de 0 a 1
       {
-        nodo.Bomba^=1;            // Invierto la salida 
-        digitalWrite(SALIDA1, nodo.Bomba);  // Activo/Desactivo Salida
-        PublicarBomba();
+        nodo.output_GPIO^=1;            // Invierto la salida 
+        digitalWrite(OUTPUT, nodo.output_GPIO);  // Activo/Desactivo Salida
+        PublishOutput();
       }
-      nodo.Tecla = curStatus;
+      nodo.input_GPIO = curStatus;
       RoundCheck = 0;
       
-      PublicarTecla();
+      PublishInput();
     }
   }
 
@@ -291,8 +287,8 @@ void CheckTeclas(){
 
 void setup()
 {
-  pinMode(PULSADOR1, INPUT);
-  pinMode(SALIDA1, OUTPUT);
+  pinMode(INPUT, INPUT);
+  pinMode(OUTPUT, OUTPUT);
 
 #if defined(DEBUG_SERIAL)
   Serial.begin(115200);
@@ -308,7 +304,7 @@ void setup()
 
   connectToMQTT();
 
-  digitalWrite(SALIDA1, LOW);
+  digitalWrite(OUTPUT, LOW);
 
 }
 
@@ -323,7 +319,7 @@ void loop()
   mqttClient.loop();
   yield();
 
-  CheckTeclas();
+  CheckInputs();
   yield();
 
 }
