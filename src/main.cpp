@@ -28,7 +28,7 @@ void PublishOutput(void);
 void PublishInput(void);
 
 struct Status{
-boolean output_GPIO = 0;
+boolean output_GPIO = 1;
 uint8_t input_GPIO = 1;
 }nodo;
 
@@ -157,7 +157,7 @@ void handleMQTTMessage(char* p_topic, byte* p_payload, unsigned int p_length) {
     {
       nodo.output_GPIO = set_value;
       digitalWrite(OUTPUT, nodo.output_GPIO);
-      DEBUG_PRINT(F("Water PUMP TURNED: "));
+      DEBUG_PRINT(F("OUTPUT TURNED: "));
       DEBUG_PRINTLN((nodo.output_GPIO)?"ON":"OFF");
     }
     PublishOutput();

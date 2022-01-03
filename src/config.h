@@ -7,7 +7,7 @@
 #define OUTPUT  2 // D4  // GPIO1 
 #else
 #define INPUT   D3  // GPIO0
-#define OUTPUT  D4  // GPIO1 - LED_BUILTIN
+#define OUTPUT  D10  // LED en el ESP12, lógica invertida
 #endif
 
 ///////////////////////////////////////////////////////////////////////////
@@ -39,8 +39,13 @@ IPAddress NODE_MASK(255,255,255,0);
 #define MQTT_CONNECTED_STATUS "online"
 #define MQTT_DISCONNECTED_STATUS "offline"
 
+#ifdef ARDUINO_ESP8266_ESP01
 #define ON   "1"
 #define OFF  "0"
+#else
+#define ON   "0"    // EL Led del ESP12 tiene lógica invertida
+#define OFF  "1"
+#endif
 
 #define TIMEOUT 5000
 
